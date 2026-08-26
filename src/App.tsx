@@ -2,7 +2,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import News from "./pages/News";
-import Search from "./pages/Search";
+import Sources from "./pages/Search";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -13,7 +13,7 @@ const App = () => (
     <HashRouter>
       <Routes>
         <Route path="/" element={<News />} />
-          <Route path="/search" element={<Search />} />
+          <Route path="/search" element={<Sources />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </HashRouter>

@@ -11,11 +11,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArticleCard } from "@/components/ArticleCard";
-import { listNews, fetchNews } from "@/lib/news";
+import { listNews, fetchNews, searchNews } from "@/lib/news";
 import { useDebounce } from "@/hooks/use-debounce";
 
-const PAGE_SIZE = 20; // fetch 20 initially, more only on request
+const PAGE_SIZE = 20; // feed: fetch 20 initially, more only on request
 const SOURCE_BATCH = 50; // one-time fetch to populate the source filter
+const SEARCH_LIMIT = 30; // web search results per query
 
 // Feed titles are often verbose ("Name – subtitle …"); show just the name.
 function shortSource(source: string): string {
@@ -29,23 +30,25 @@ const News = () => {
   const [searchInput, setSearchInput] = useState("");
   const [selectedSource, setSelectedSource] = useState("");
   const query = useDebounce(searchInput, 300).trim();
+  const searching = query.length > 0;
 
-  // Append-style pagination: load 20 initially, fetch more only on request.
-  const {
-    data,
-    error,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-    isFetching,
-  } = useInfiniteQuery({
-    queryKey: ["news", query, selectedSource],
+  // Stored feed (only when not searching) — append-style pagination.
+  const feed = useInfiniteQuery({
+    queryKey: ["news-feed", selectedSource],
+    enabled: !searching,
     queryFn: ({ pageParam }) =>
-      listNews(PAGE_SIZE, pageParam, query || undefined, selectedSource || undefined),
+      listNews(PAGE_SIZE, pageParam, undefined, selectedSource || undefined),
     initialPageParam: 0,
     getNextPageParam: (last) =>
       last.count === PAGE_SIZE ? last.offset + last.count : undefined,
+    refetchOnWindowFocus: false,
+  });
+
+  // Multi-source web search (only when searching).
+  const search = useQuery({
+    queryKey: ["news-web", query],
+    enabled: searching,
+    queryFn: () => searchNews(query, undefined, SEARCH_LIMIT),
     refetchOnWindowFocus: false,
   });
 
@@ -66,10 +69,11 @@ const News = () => {
     return Array.from(set).sort();
   }, [sourcesData]);
 
-  const articles = useMemo(
-    () => data?.pages.flatMap((p) => p.items) ?? [],
-    [data],
+  const feedArticles = useMemo(
+    () => feed.data?.pages.flatMap((p) => p.items) ?? [],
+    [feed.data],
   );
+  const searchArticles = search.data?.items ?? [];
 
   const fetchMutation = useMutation({
     mutationFn: () => fetchNews(),
@@ -79,12 +83,11 @@ const News = () => {
           (res.errors ? ` · ${res.errors} error(s)` : ""),
       );
       queryClient.invalidateQueries({ queryKey: ["news"] });
+      queryClient.invalidateQueries({ queryKey: ["news-feed"] });
       queryClient.invalidateQueries({ queryKey: ["news-sources"] });
     },
     onError: (err: Error) => toast.error(err.message || "Fetch failed"),
   });
-
-  const hasFilters = Boolean(query || selectedSource);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -98,7 +101,7 @@ const News = () => {
             </div>
             <div className="flex items-center gap-2">
               <Button asChild variant="outline" size="sm">
-                <Link to="/search">Multi-source search</Link>
+                <Link to="/search">Sources</Link>
               </Button>
               <Button
                 size="sm"
@@ -113,7 +116,7 @@ const News = () => {
             </div>
           </div>
 
-          {/* Search + source filter (stacks on mobile) */}
+          {/* Search bar (web search) + source filter (feed only, stacks on mobile) */}
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -123,7 +126,7 @@ const News = () => {
                 type="search"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search title or summary…"
+                placeholder="Search across all sources (e.g. OpenAI, linux)…"
                 aria-label="Search articles"
                 className="pl-8 pr-8"
               />
@@ -138,92 +141,127 @@ const News = () => {
                 </button>
               )}
             </div>
-            <div className="flex items-center gap-1.5">
-              <label
-                htmlFor="news-source"
-                className="shrink-0 text-xs font-medium text-muted-foreground"
-              >
-                Source
-              </label>
-              <select
-                id="news-source"
-                name="source"
-                value={selectedSource}
-                onChange={(e) => setSelectedSource(e.target.value)}
-                aria-label="Filter by source"
-                className="h-10 min-w-32 flex-1 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:flex-none"
-              >
-                <option value="">All</option>
-                {sources.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {!searching && (
+              <div className="flex items-center gap-1.5">
+                <label
+                  htmlFor="news-source"
+                  className="shrink-0 text-xs font-medium text-muted-foreground"
+                >
+                  Source
+                </label>
+                <select
+                  id="news-source"
+                  name="source"
+                  value={selectedSource}
+                  onChange={(e) => setSelectedSource(e.target.value)}
+                  aria-label="Filter by source"
+                  className="h-10 min-w-32 flex-1 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:flex-none"
+                >
+                  <option value="">All</option>
+                  {sources.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-6">
-        {isLoading ? (
-          <p className="py-12 text-center text-muted-foreground">
-            Loading articles…
-          </p>
-        ) : error ? (
-          <p className="py-12 text-center text-destructive">
-            {error.message || "Failed to load news."}
-          </p>
-        ) : articles.length === 0 ? (
-          <div className="py-16 text-center">
-            <Newspaper className="mx-auto size-10 text-muted-foreground" />
-            <p className="mt-3 text-muted-foreground">
-              {hasFilters ? "No articles match your filters." : "No articles yet."}
+        {searching ? (
+          // --- web search results ---
+          search.isPending ? (
+            <p className="py-12 text-center text-muted-foreground">Searching…</p>
+          ) : search.error ? (
+            <p className="py-12 text-center text-destructive">
+              {search.error.message || "Search failed."}
             </p>
-            {!hasFilters && (
-              <Button
-                className="mt-4"
-                onClick={() => fetchMutation.mutate()}
-                disabled={fetchMutation.isPending}
-              >
-                <RefreshCw className={fetchMutation.isPending ? "animate-spin" : ""} />
-                Fetch news feeds
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {articles.map((a) => (
-              <ArticleCard
-                key={a.id}
-                title={a.title}
-                url={a.url}
-                source={a.source}
-                published={a.published}
-                summary={a.summary}
-              />
-            ))}
-            {hasNextPage && (
-              <div className="flex justify-center pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => fetchNextPage()}
-                  disabled={isFetchingNextPage}
-                >
-                  {isFetchingNextPage ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    "Load more"
-                  )}
-                </Button>
-              </div>
-            )}
-            {!hasNextPage && isFetching && !isLoading && (
-              <p className="py-2 text-center text-xs text-muted-foreground">
-                Updating…
+          ) : (
+            <>
+              <p className="mb-3 text-sm text-muted-foreground">
+                {searchArticles.length} result{searchArticles.length === 1 ? "" : "s"} for
+                “{query}”{search.data?.cached ? " · cached" : ""}
               </p>
-            )}
-          </div>
+              {searchArticles.length === 0 ? (
+                <div className="py-16 text-center">
+                  <Newspaper className="mx-auto size-10 text-muted-foreground" />
+                  <p className="mt-3 text-muted-foreground">No articles found.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {searchArticles.map((a, i) => (
+                    <ArticleCard
+                      key={`${a.url}-${i}`}
+                      title={a.title}
+                      url={a.url}
+                      source={a.source}
+                      published={a.published}
+                      summary={a.summary}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )
+        ) : (
+          // --- stored feed ---
+          feed.isLoading ? (
+            <p className="py-12 text-center text-muted-foreground">
+              Loading articles…
+            </p>
+          ) : feed.error ? (
+            <p className="py-12 text-center text-destructive">
+              {feed.error.message || "Failed to load news."}
+            </p>
+          ) : feedArticles.length === 0 ? (
+            <div className="py-16 text-center">
+              <Newspaper className="mx-auto size-10 text-muted-foreground" />
+              <p className="mt-3 text-muted-foreground">
+                {selectedSource ? "No articles match this source." : "No articles yet."}
+              </p>
+              {!selectedSource && (
+                <Button
+                  className="mt-4"
+                  onClick={() => fetchMutation.mutate()}
+                  disabled={fetchMutation.isPending}
+                >
+                  <RefreshCw className={fetchMutation.isPending ? "animate-spin" : ""} />
+                  Fetch news feeds
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {feedArticles.map((a) => (
+                <ArticleCard
+                  key={a.id}
+                  title={a.title}
+                  url={a.url}
+                  source={a.source}
+                  published={a.published}
+                  summary={a.summary}
+                />
+              ))}
+              {feed.hasNextPage && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => feed.fetchNextPage()}
+                    disabled={feed.isFetchingNextPage}
+                  >
+                    {feed.isFetchingNextPage ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      "Load more"
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )
         )}
       </main>
     </div>
