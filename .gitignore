@@ -32,3 +32,17 @@ __pycache__/
 app/.venv
 opencode.json
 opencode.md
+
+# >>> trustable managed — do not edit <<<
+.acp-data/
+.env
+.env.production
+!.env.dist
+node_modules/
+.mcp.json
+CLAUDE.md
+CLAUDE.md.removed
+.claude
+.claude.removed
+.openserverless-contract.md
+# >>> end trustable managed <<<
