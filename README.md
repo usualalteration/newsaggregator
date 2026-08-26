@@ -4,6 +4,8 @@ A minimal news aggregator: React frontend + OpenServerless Python actions +
 Redis. Fetches RSS/Atom feeds, deduplicates, stores in Redis, and lists
 articles through an HTTP action.
 
+![](screenshot.png)
+
 ## Actions
 
 - `news/fetch` — fetch enabled sources from `packages/news/fetch/sources.json`,
