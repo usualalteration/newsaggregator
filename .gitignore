@@ -26,6 +26,8 @@ dist-ssr
 web/
 .ops/
 __pycache__/
+virtualenv/
+requirements.txt
 *.zip
 .env
 .env.*

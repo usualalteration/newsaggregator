@@ -1,0 +1,26 @@
+[
+  {
+    "id": "hackernews",
+    "name": "Hacker News",
+    "url": "https://news.ycombinator.com/rss",
+    "enabled": true
+  },
+  {
+    "id": "bbc",
+    "name": "BBC News",
+    "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "enabled": true
+  },
+  {
+    "id": "theverge",
+    "name": "The Verge",
+    "url": "https://www.theverge.com/rss/index.xml",
+    "enabled": true
+  },
+  {
+    "id": "aljazeera",
+    "name": "Al Jazeera",
+    "url": "https://www.aljazeera.com/xml/rss/all.xml",
+    "enabled": true
+  }
+]

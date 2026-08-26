@@ -1,0 +1,39 @@
+[
+  {
+    "id": "google-news",
+    "name": "Google News",
+    "search_url": "https://news.google.com/rss/search?q={q}&hl=en&gl=US&ceid=US:en",
+    "enabled": true
+  },
+  {
+    "id": "hackernews",
+    "name": "Hacker News",
+    "url": "https://news.ycombinator.com/rss",
+    "enabled": true
+  },
+  {
+    "id": "bbc",
+    "name": "BBC News",
+    "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "enabled": true
+  },
+  {
+    "id": "theverge",
+    "name": "The Verge",
+    "url": "https://www.theverge.com/rss/index.xml",
+    "enabled": true
+  },
+  {
+    "id": "aljazeera",
+    "name": "Al Jazeera",
+    "url": "https://www.aljazeera.com/xml/rss/all.xml",
+    "enabled": true
+  },
+  {
+    "id": "techcrunch",
+    "name": "TechCrunch",
+    "url": "https://techcrunch.com/feed/",
+    "search_url": "https://techcrunch.com/?s={q}&feed=rss2",
+    "enabled": true
+  }
+]
